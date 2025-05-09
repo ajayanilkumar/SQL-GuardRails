@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sql_guardrail"
+version = "1.1.0" # Corresponds to your doc version
+authors = [
+    { name = "Your Name", email = "you@example.com" },
+]
+description = "A module to analyze SQL query parameters and suggest corrections based on reference data."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", # Choose your license
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.0",
+    "sqlparse>=0.4.0",
+    "python-Levenshtein>=0.20.0", # Or consider rapidfuzz
+    "rapidfuzz>=3.0.0", # For FuzzyWuzzy like features
+    "sentence-transformers>=2.2.0",
+    "torch>=1.9.0", # Check sentence-transformers for compatible torch version
+    # "transformers>=4.0.0" # Often a peer dependency or pulled in by sentence-transformers
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/sql_guardrail" # Example
+"Bug Tracker" = "https://github.com/yourusername/sql_guardrail/issues" # Example

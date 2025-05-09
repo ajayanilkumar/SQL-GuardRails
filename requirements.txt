@@ -1,0 +1,8 @@
+sentence-transformers
+scikit-learn
+sqlparse
+fuzzywuzzy[speedup]
+python-Levenshtein
+gensim
+numpy
+pydantic
