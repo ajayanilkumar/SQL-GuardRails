@@ -3,7 +3,7 @@ from typing import List, Tuple, Dict, Optional, Literal
 from abc import ABC, abstractmethod
 import logging
 import numpy as np
-from sentence_transformers import SentenceTransformer  # pip install sentence-transformers
+# from sentence_transformers import SentenceTransformer  # pip install sentence-transformers
 from sklearn.metrics.pairwise import cosine_similarity  # pip install scikit-learn
 from fuzzywuzzy import fuzz  # pip install fuzzywuzzy[speedup]
 import Levenshtein  # python-Levenshtein also provides Jaro-Winkler

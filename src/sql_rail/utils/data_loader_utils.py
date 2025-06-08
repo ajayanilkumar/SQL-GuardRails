@@ -122,8 +122,11 @@ def discover_reference_json_files(directory_path: str) -> Dict[str, str]:
     
     try:
         for filename in os.listdir(directory_path):
+            logger.debug(f"Checking file: {filename}")
             if filename.endswith('_values.json'):
-                match = re.match(r'(.+)_values\.json\$', filename)
+                logger.debug(f"Found reference JSON file: {filename}")
+                match = re.match(r'(.+)_values\.json$', filename)
+                logger.debug(f"Regex match result: {match}")
                 if match:
                     column_name = match.group(1)
                     file_path = os.path.join(directory_path, filename)

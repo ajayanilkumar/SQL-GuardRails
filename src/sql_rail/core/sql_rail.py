@@ -138,10 +138,11 @@ class SQLRail:
             )
 
         for condition in parsed_conditions:
-            column_name = condition["column_name"]
+            column_name = condition["column_name"].strip("\"")
             operator = condition["operator"]
             # query_parameter_values is a list, even for '=' operator
             query_parameter_values = condition["query_parameter_values"]
+            logger.info(f"Analyzing condition: {column_name} {operator} {query_parameter_values}")
             raw_value_in_query_segment = condition["raw_value_in_query"]
 
             condition_analyses_by_metric: List[DistanceMetricAnalysis] = []

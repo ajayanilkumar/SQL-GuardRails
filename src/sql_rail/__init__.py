@@ -2,15 +2,15 @@
 """
 SQL Guardrail Module: Analyze and suggest corrections for SQL query parameters.
 """
-__version__ = "1.1.0"
+__version__ = "0.0.8"
 
 from .core.sql_rail import SQLRail
 from .core.distance_metrics import (
     Distance,
     LevenshteinDistance,
-    SemanticDistance,
+    # SemanticDistance,
     JaroWinklerSimilarity,
-    TokenSetRatio, # Add if you implement it
+    TokenSetRatio,
 )
 from .models.results import (
     MatchSuggestion,
@@ -23,7 +23,7 @@ __all__ = [
     "SQLRail",
     "Distance",
     "LevenshteinDistance",
-    "SemanticDistance",
+    # "SemanticDistance",
     "JaroWinklerSimilarity",
     "TokenSetRatio",
     "MatchSuggestion",

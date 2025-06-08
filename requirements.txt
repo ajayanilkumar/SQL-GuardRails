@@ -1,8 +1,7 @@
-sentence-transformers
 scikit-learn
 sqlparse
+sqlglot
 fuzzywuzzy[speedup]
 python-Levenshtein
-gensim
 numpy
 pydantic
