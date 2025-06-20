@@ -2,6 +2,7 @@ from google.adk.agents import Agent
 from google.genai import types
 import google.genai as genai
 from dotenv import load_dotenv
+from typing import Dict, Any
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ llm_client = genai.Client(api_key=GOOGLE_API_KEY)
 
 # --- 0. Setup and Configuration ---
 
-DATABASE_FILE_NAME = 'examplesuperstore.db'
+DATABASE_FILE_NAME = 'example/superstore.db'
 TABLE_NAME = 'sales'
 DB_URI = f'sqlite:///{DATABASE_FILE_NAME}'
 REFERENCE_DATA_DIR = 'example/reference_data'
@@ -106,8 +107,14 @@ def generate_sql(user_query: str) -> str:
     schema_prompt = f"""
     You are a text-to-SQL model. Your task is to generate a SQL query based on the user's question.
     The query will be executed on a table named 'sales'.
-    The schema of the 'sales' table is: 'ship_mode', 'segment', 'country', 'city', 'state', 'postal_code', 'region', 'category', 'sub_category', 'sales', 'quantity', 'discount', 'profit'.
-    Generate only the SQL query.
+    The schema of the 'sales' table is: ['row_id', 'order_id', 'order_date', 'ship_date', 'ship_mode', 'customer_id', 'customer_name', 'segment', 'country', 'city', 'state', 'postal_code', 'region', 'product_id', 'category', 'subcategory', 'product_name', 'sales', 'quantity', 'discount', 'profit']
+    Generate only the SQL query. Try not to use string matching conditions as that it handled by another function.
+
+    * **Column Names:** Use *ONLY* the column names mentioned in the Schema details below. Enclose column names in double quotes if they contain special characters or match reserved words, otherwise quotes are optional but recommended for clarity (e.g., `"day_of_week"`).
+    * **Schema Adherence:** Strictly use the columns and types defined in the schema. Pay attention to column descriptions and sample values for context. eg: (product_name)
+    * **Filtering:** Use `WHERE` clauses effectively based on the user's question. Use single quotes for string literals (e.g., `WHERE country = 'Canada'`).
+
+
     Question: {user_query}
     SQL Query:
     """
@@ -135,34 +142,43 @@ def generate_sql(user_query: str) -> str:
 
 
 
-def sql_rails_validator(sql_query: str) -> str:
+def sql_rails_validator(sql_query: str) -> Dict[str, Any]:
     """
-    Validates the WHERE conditions in a SQL query using sql-rail.
-    If a parameter has a low similarity score to the reference data, it raises an error.
+    Validates SQL query parameters against preloaded reference data and
+    suggests closest matches for potentially invalid parameters.
+
+    Args:
+        sql_query: The SQL query string to analyze.
+
+    Returns:
+        A dictionary containing the analysis results.
     """
-    print(f"\n--- Validating SQL Query with sql-rail: {sql_query} ---")
-    if "WHERE" not in sql_query.upper():
-        print("No WHERE clause found. Skipping validation.")
-        return sql_query
-        
-    analysis_result = sql_rail_instance.analyze_query(sql_query=sql_query, k=1)
+
+    # Try to convert analysis_result to a dict for JSON serialization
+    try:
     
-    for condition in analysis_result.analyzed_conditions:
-        for analysis in condition.analyses_by_metric:
-            # We only care about the first (top) suggestion
-            if analysis.suggestions:
-                top_suggestion = analysis.suggestions[0]
-                if top_suggestion.similarity_score < 1.0:
-                    error_message = (
-                        f"Validation Error: Potential typo found. "
-                        f"Value '{analysis.query_parameter_value}' in column '{condition.column_name}' is not an exact match. "
-                        f"Did you mean '{top_suggestion.suggested_value}'? "
-                        f"(Similarity score: {top_suggestion.similarity_score:.2f})"
-                    )
-                    raise ValueError(error_message)
-                    
-    print("--- SQL Query validation successful ---")
-    return sql_query
+        result = sql_rail_instance.analyze_query(sql_query=sql_query, k=3)
+        analysis_results = []
+        for condition in result.analyzed_conditions:
+            suggestions_by_metric = {}
+            for metric_analysis in condition.analyses_by_metric:
+                suggestions = []
+                for suggestion in metric_analysis.suggestions:
+                    suggestions.append({
+                        "suggested_value": suggestion.suggested_value,
+                        "similarity_score": suggestion.similarity_score
+                    })
+                suggestions_by_metric[metric_analysis.metric_name] = suggestions
+            analysis_results.append({
+                "column_name": condition.column_name,
+                "operator": condition.operator,
+                "raw_value_in_query": condition.raw_value_in_query,
+                "suggestions": suggestions_by_metric
+            })
+
+        return {"analysis": analysis_results}
+    except Exception as e:
+        return {"error": f"Error during SQL parameter validation: {e}"}
 
 def execute_sql(sql_query: str) -> str:
     """Executes a validated SQL query on the 'sales' table and returns the result."""
@@ -184,14 +200,41 @@ from typing import Dict, Any, Optional
 root_agent = Agent(
     model="gemini-2.0-flash",
     name="sql_agent",
-    instruction="""You are a specialized AI agent designed to answer questions about a sales database.
+    instruction="""You are a helpful AI assistant specialized in querying an sqlalchemy database table named `sales`. Your goal is to help users explore this table using natural language.
 
-Your goal is to answer the user's question by following a strict, multi-step process:
-1.  Generate a SQL query from the user's question.
-2.  Validate the generated SQL query to catch potential typos or errors in the `WHERE` clause.
-3.  If validation fails, you MUST correct the SQL query based on the feedback and re-validate it.
-4.  Once the query is successfully validated, execute it to retrieve the final answer.
-5.  Provide the final answer to the user.
+**Your Capabilities:**
+* Understand user requests in natural language regarding the `sales` table.
+* Maintain conversation history and use context from previous turns to understand follow-up questions.
+* Use the provided tools to generate and execute SQL queries.
+* Format and present the results clearly, including summarizing findings or showing data tables.
+* Explain any errors encountered during query generation or execution.
+* Utilize the `sql_rails_validator` tool to check the validity of parameters in the generated SQL and suggest corrections.
+
+
+**Available Tools:**
+
+* **`generate_sql`**: Use this tool to convert a user's natural language question (potentially informed by conversation context) into a SQL query. Input is the natural language question. Output is the generated SQL string.
+* **`sql_rails_validator`**: Use this tool to analyze the SQL query generated by `generate_sql` and identify potential issues with the parameters used in `WHERE` clauses (e.g., typos, abbreviations). Input is the SQL string. Output is a dictionary containing analysis results with suggested corrections and similarity scores, or an empty list if no issues are found.
+* **`execute_sql`**: Use this tool to execute a provided SQL query against the database.
+
+**Workflow:**
+1.  **Analyze Request:** Understand the user's latest query in the context of the conversation history. Determine if it's a request about the `sales` table. If it's a greeting or off-topic, respond conversationally. If it is a complex request, break it down into simpler parts.
+2.  **Generate SQL (if applicable):** If the request requires querying the table, call the `generate_sql` tool, providing the user's question (potentially reformulated based on context).
+3.  **Validate SQL Parameters:** If the SQL string returned by `generate_sql` has a where claude, pass it to the `sql_rails_validator` tool.
+4.  **Handle Parameter Issues (if any):**
+    * If parameters returned are valid, just proceed to `execute_sql`. DO NOT ask the user for confirmation.
+    * If `sql_rails_validator` returns changes that do not match the query, present them to the user and ask if they want to use any of the corrections. 
+    * If changes are required and the user agrees to a correction, you should modify the SQL query directly (with caution) and proceed to `execute_sql`.
+5.  **Execute SQL (if applicable):** Take the SQL string returned by `generate_sql` or corrected by you and pass it to the `execute_sql` tool.
+6.  **Format Response:**
+    * If `execute_sql` returns a `query_result`, summarize the findings in natural language and/or present the data clearly (e.g., as a markdown table). You can optionally include the executed SQL for transparency.
+    * If `execute_sql` returns an `error_message`, explain the error to the user in a helpful way. Do not show the erroneous SQL unless specifically asked or it helps clarify the error.
+    * If `generate_sql` fails to produce valid SQL, inform the user you couldn't translate their request.
+
+**Table Schema:**
+['row_id', 'order_id', 'order_date', 'ship_date', 'ship_mode', 'customer_id', 'customer_name', 'segment', 'country', 'city', 'state', 'postal_code', 'region', 'product_id', 'category', 'subcategory', 'product_name', 'sales', 'quantity', 'discount', 'profit']
+
+
     """,
     tools=[
         generate_sql,
