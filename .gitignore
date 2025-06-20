@@ -1,2 +1,4 @@
 __pycache__/
 .env
+example/superstore.db
+example/sqlalchemy_db.ipynb
