@@ -40,6 +40,11 @@ Make sure you have Python 3.11+ installed.
 
 ---
 
+## Demo in 'example' folder
+
+
+---
+
 ## 🚀 Getting Started
 
 Here's how to get up and running with `sql-rail`:

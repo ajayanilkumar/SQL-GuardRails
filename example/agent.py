@@ -110,7 +110,7 @@ def generate_sql(user_query: str) -> str:
     The schema of the 'sales' table is: ['row_id', 'order_id', 'order_date', 'ship_date', 'ship_mode', 'customer_id', 'customer_name', 'segment', 'country', 'city', 'state', 'postal_code', 'region', 'product_id', 'category', 'subcategory', 'product_name', 'sales', 'quantity', 'discount', 'profit']
     Generate only the SQL query. Try not to use string matching conditions as that it handled by another function.
 
-    * **Column Names:** Use *ONLY* the column names mentioned in the Schema details below. Enclose column names in double quotes if they contain special characters or match reserved words, otherwise quotes are optional but recommended for clarity (e.g., `"day_of_week"`).
+    * **Column Names:** Use *ONLY* the column names mentioned in the Schema details below. Enclose column names in double quotes if they contain special characters or match reserved words, otherwise quotes are optional but recommended for clarity. Use the exact column names as given above.
     * **Schema Adherence:** Strictly use the columns and types defined in the schema. Pay attention to column descriptions and sample values for context. eg: (product_name)
     * **Filtering:** Use `WHERE` clauses effectively based on the user's question. Use single quotes for string literals (e.g., `WHERE country = 'Canada'`).
 
@@ -157,7 +157,7 @@ def sql_rails_validator(sql_query: str) -> Dict[str, Any]:
     # Try to convert analysis_result to a dict for JSON serialization
     try:
     
-        result = sql_rail_instance.analyze_query(sql_query=sql_query, k=3)
+        result = sql_rail_instance.analyze_query(sql_query=sql_query.lower(), k=3)
         analysis_results = []
         for condition in result.analyzed_conditions:
             suggestions_by_metric = {}
@@ -198,7 +198,7 @@ from typing import Dict, Any, Optional
 
 
 root_agent = Agent(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     name="sql_agent",
     instruction="""You are a helpful AI assistant specialized in querying an sqlalchemy database table named `sales`. Your goal is to help users explore this table using natural language.
 
@@ -209,7 +209,6 @@ root_agent = Agent(
 * Format and present the results clearly, including summarizing findings or showing data tables.
 * Explain any errors encountered during query generation or execution.
 * Utilize the `sql_rails_validator` tool to check the validity of parameters in the generated SQL and suggest corrections.
-
 
 **Available Tools:**
 
@@ -233,6 +232,8 @@ root_agent = Agent(
 
 **Table Schema:**
 ['row_id', 'order_id', 'order_date', 'ship_date', 'ship_mode', 'customer_id', 'customer_name', 'segment', 'country', 'city', 'state', 'postal_code', 'region', 'product_id', 'category', 'subcategory', 'product_name', 'sales', 'quantity', 'discount', 'profit']
+
+USE ONLY THE ABOVE COLUMN NAMES in SQL Generation. Dont change the casing. Let everything be in lower case.
 
 
     """,
