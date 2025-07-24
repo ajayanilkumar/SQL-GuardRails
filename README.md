@@ -42,6 +42,7 @@ Make sure you have Python 3.11+ installed.
 
 ## Demo in 'example' folder
 
+![](https://github.com/ajayanilkumar/SQL-GuardRails/blob/main/example/GIF/SQL-Rail.gif)
 
 ---
 
